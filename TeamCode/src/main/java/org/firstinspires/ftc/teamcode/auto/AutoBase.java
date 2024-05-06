@@ -8,8 +8,6 @@ import com.qualcomm.robotcore.util.ElapsedTime;
 import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
 import org.firstinspires.ftc.robotcore.external.navigation.YawPitchRollAngles;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
-import org.firstinspires.ftc.robotcore.external.ClassFactory;
-import org.firstinspires.ftc.robotcore.external.hardware.camera.WebcamName;
 //import org.firstinspires.ftc.robotcore.external.navigation.VuforiaLocalizer;
 import org.firstinspires.ftc.robotcore.external.tfod.Recognition;
 import org.firstinspires.ftc.robotcore.external.tfod.TFObjectDetector;
@@ -89,9 +87,14 @@ public abstract class AutoBase extends LinearOpMode {
     protected boolean doGyro = true;
     private IMU imu;
 
-    protected boolean doArm = false;
+    protected boolean doArm = true;
     protected DcMotor arm;
+    private int armStart = 0;
+    private int armTarget = 0;
+
+    protected boolean doFinger = true;
     protected Servo finger;
+    protected Servo wrist;
 
     protected boolean doThePurplePixelPlopper = true;
     protected Servo thePurplePixelPlopper;
@@ -106,6 +109,7 @@ public abstract class AutoBase extends LinearOpMode {
     // Instance Members: Vuforia
     protected boolean doVuforia = true;
    // private VuforiaLocalizer vuforia;
+
     private TFObjectDetector tfod;
     private List<Recognition> recognitionsList = new ArrayList<>();
 
@@ -168,10 +172,15 @@ public abstract class AutoBase extends LinearOpMode {
         }
 
         if (doArm) {
-            arm = hardwareMap.get(DcMotor.class, "arm");
+            arm = hardwareMap.get(DcMotor.class, "funkyShoulder");
             arm.setPower(0);
+            armStart = 0;
+            armTarget = 0;
+        }
 
-            finger = hardwareMap.get(Servo.class, "finger");
+        if (doFinger) {
+            finger = hardwareMap.get(Servo.class, "funkyClaw");
+            wrist = hardwareMap.get(Servo.class, "funkyWrist");
         }
 
         if (doThePurplePixelPlopper) {
@@ -185,7 +194,7 @@ public abstract class AutoBase extends LinearOpMode {
 
         initGyroscope();
 
-        if (doVuforia) {
+       /* if (doVuforia) {
             initVuforia();
             initTfod();
 
@@ -198,9 +207,9 @@ public abstract class AutoBase extends LinearOpMode {
                 // to artificially zoom in to the center of image.  For best results, the "aspectRatio" argument
                 // should be set to the value of the images used to create the TensorFlow Object Detection model
                 // (typically 16/9).
-                //tfod.setZoom(1.0, 16.0/9.0);
+               // tfod.setZoom(1.0, 16.0/9.0);
             }
-        }
+        } */
 
         // Init run state.
         madeTheRun = false;
@@ -464,6 +473,11 @@ public abstract class AutoBase extends LinearOpMode {
             telemetry.addData("Motor", "DISABLED");
         }
 
+        if (doArm) {
+            telemetry.addData("Arm", "start=%d, curr=%d, end=%d, pwr=%02.1f",
+                    armStart, arm.getCurrentPosition(), armTarget, arm.getPower());
+        }
+
         if (doVuforia) {
             telemetry.addData("Tensor", "config=%s, recogs=%d", getRingConfiguration(), recognitionsList.size());
         } else {
@@ -619,21 +633,25 @@ public abstract class AutoBase extends LinearOpMode {
     /**
      * Initialize the Vuforia localization engine.
      */
+
     private void initVuforia() {
        /* VuforiaLocalizer.Parameters parameters = new VuforiaLocalizer.Parameters();
+
         parameters.vuforiaLicenseKey = VUFORIA_KEY;
         parameters.cameraName = hardwareMap.get(WebcamName.class, "Webcam");
         //  Instantiate the Vuforia engine
-        vuforia = ClassFactory.getInstance().createVuforia(parameters);
+        vuforia = ClassFactory.getInstance().createVuforia(parameters); */
+    } 
 
-        */
-    }
+
+
 
     /**
      * Initialize the TensorFlow Object Detection engine.
      */
     private void initTfod() {
-       /* int tfodMonitorViewId = hardwareMap.appContext.getResources().getIdentifier(
+
+      /*  int tfodMonitorViewId = hardwareMap.appContext.getResources().getIdentifier(
                 "tfodMonitorViewId", "id", hardwareMap.appContext.getPackageName());
         TFObjectDetector.Parameters tfodParameters = new TFObjectDetector.Parameters(tfodMonitorViewId);
         tfodParameters.minResultConfidence = 0.5f; // 0.75f;
@@ -770,13 +788,30 @@ public abstract class AutoBase extends LinearOpMode {
     }
 
     protected void openFinger() {
-        if (doArm) {
+        if (doFinger) {
             finger.setPosition(1.0);
         }
     }
     protected void closeFinger() {
-        if (doArm) {
+        if (doFinger) {
             finger.setPosition(0.0);
+        }
+    }
+
+
+    protected void raiseWrist(int i) {
+        if (doFinger) {
+            wrist.setPosition(1.0);
+        }
+    }
+    protected void lowerWrist(int i) {
+        if (doFinger) {
+            wrist.setPosition(0.0);
+        }
+    }
+    protected void wristSet(float i) {
+        if (doFinger) {
+            wrist.setPosition(i);
         }
     }
 
@@ -801,6 +836,35 @@ public abstract class AutoBase extends LinearOpMode {
             arm.setPower(0.7);
             ratCrewWaitMillis(mill);
             arm.setPower(0);
+        }
+    }
+
+    protected void moveArmCounter(int counter) {
+        if (doArm) {
+            // Get current position.
+            armStart = arm.getCurrentPosition();
+            armTarget = armStart + counter;
+            printStatus();
+
+            // Tell the motor its end spot, and start it up.
+            arm.setTargetPosition(armTarget);
+            arm.setMode(DcMotor.RunMode.RUN_TO_POSITION);
+
+            // Loop and wait until its done.
+            ElapsedTime motorOnTime = new ElapsedTime();
+            boolean keepGoing = true;
+            while (opModeIsActive() && keepGoing && (motorOnTime.seconds() < 30)) {
+                arm.setPower(0.5);
+                printStatus();
+                keepGoing = arm.isBusy();
+            }
+
+            // Clear out the state.
+            printStatus();
+            arm.setPower(0);
+            arm.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
+            armStart = 0;
+            armTarget = 0;
         }
     }
 
