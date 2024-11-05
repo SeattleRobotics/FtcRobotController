@@ -39,7 +39,7 @@ public abstract class AutoBase extends LinearOpMode {
     };
 
     private static final float NUDGE_ANGLE = 4.0f;
-    private static final float MOTOR_TURN_SPEED = 0.4f;
+    private static final float MOTOR_TURN_SPEED = 0.25f;
     private static final float MOTOR_MOVE_SPEED = 0.6f;
     private static final float WHEEL_DIAMETER = 4.0f;
     private static final long WAIT_TIME = TimeUnit.SECONDS.toMillis(5L);
@@ -80,6 +80,11 @@ public abstract class AutoBase extends LinearOpMode {
     private int armStart = 0;
     private int armTarget = 0;
 
+    protected boolean doExtend = true;
+    protected DcMotor extend;
+    private int extendStart = 0;
+    private int extendTarget = 0;
+
     protected boolean doFinger = true;
     protected Servo finger;
     protected Servo wrist;
@@ -95,10 +100,10 @@ public abstract class AutoBase extends LinearOpMode {
     private boolean madeTheRun = false;
 
     // Instance Members: ObjectDetection
-    protected boolean doObjectDetection = true;
+    protected boolean doObjectDetection = false;
     private TfodProcessor tfod;
     private VisionPortal visionPortal;
-    private List<Recognition> recognitionsList = new ArrayList<>();
+    protected List<Recognition> recognitionsList = new ArrayList<>();
 
     @Override
     public void runOpMode(){
@@ -183,8 +188,15 @@ public abstract class AutoBase extends LinearOpMode {
         if (doArm) {
             arm = hardwareMap.get(DcMotor.class, "funkyShoulder");
             arm.setPower(0);
-            armStart = 0;
+            armStart = arm.getCurrentPosition();
             armTarget = 0;
+        }
+
+        if (doExtend) {
+            extend = hardwareMap.get(DcMotor.class, "funkyShoulder2");
+            extend.setPower(0);
+            extendStart = extend.getCurrentPosition();
+            extendTarget = 0;
         }
 
         if (doFinger) {
@@ -427,7 +439,7 @@ public abstract class AutoBase extends LinearOpMode {
     protected void printStatus() {
 
         if (doGyro) {
-            telemetry.addData("Gyro", "angle=%.1f", this.getGyroscopeAngle());
+        //    telemetry.addData("Gyro", "angle=%.1f", this.getGyroscopeAngle());
         } else {
             telemetry.addData("Gyro", "DISABLED");
         }
@@ -447,8 +459,8 @@ public abstract class AutoBase extends LinearOpMode {
 
             telemetry.addData("MotorDrive", "driving=%b, off=%02.1f, corr=%02.1f",
                     isDriving, driveAngleOffset, driveAngleCorrection);
-            telemetry.addData("MotorTurn", "type=%s, now: %02.1f, dest: %02.1f, togo=%02.1f, togo2=%02.1f",
-                    motorTurnType, this.getGyroscopeAngle(), motorTurnDestination, motorTurnAngleToGo, motorTurnAngleAdjustedToGo);
+           // telemetry.addData("MotorTurn", "type=%s, now: %02.1f, dest: %02.1f, togo=%02.1f, togo2=%02.1f",
+            //        motorTurnType, this.getGyroscopeAngle(), motorTurnDestination, motorTurnAngleToGo, motorTurnAngleAdjustedToGo);
             telemetry.addData("MotorLeftBack", "start=%d, curr=%d, end=%d, pwr=%02.1f (%02.1f)",
                     driveBackLeftStart, backLeftPos, driveBackLeftTarget, driveLeftSpeed, backLeftPower);
             telemetry.addData("MotorRightBack", "start=%d, curr=%d, end=%d, pwr=%02.1f (%02.1f)",
@@ -463,11 +475,24 @@ public abstract class AutoBase extends LinearOpMode {
 
         if (doArm) {
             telemetry.addData("Arm", "start=%d, curr=%d, end=%d, pwr=%02.1f",
-                    armStart, arm.getCurrentPosition(), armTarget, arm.getPower());
+                 armStart, arm.getCurrentPosition(), armTarget, arm.getPower());
+        }
+
+        if (doExtend) {
+            telemetry.addData("extend", "start=%d, curr=%d, end=%d, pwr=%02.1f",
+                    extendStart, extend.getCurrentPosition(), extendTarget, extend.getPower());
         }
 
         if (doObjectDetection) {
-            telemetry.addData("Tensor", "recogs=%d", recognitionsList.size());
+            telemetry.addData("odd", "recogs=%d", recognitionsList.size());
+            if (recognitionsList.size() > 0) {
+                Recognition recognition = recognitionsList.get(0);
+                telemetry.addData(String.format("odd-label"), recognition.getLabel());
+                telemetry.addData(String.format("odd-left,top"), "%.03f , %.03f",
+                        recognition.getLeft(), recognition.getTop());
+                telemetry.addData(String.format("odd-right,bottom"), "%.03f , %.03f",
+                        recognition.getRight(), recognition.getBottom());
+            }
         } else {
             telemetry.addData("Tensor", "DISABLED");
         }
@@ -733,6 +758,25 @@ public abstract class AutoBase extends LinearOpMode {
     } */
 
 
+    protected List<Recognition> getRecognitions() {
+
+        List<Recognition> currentRecognitions = tfod.getRecognitions();
+        telemetry.addData("# Objects Detected", currentRecognitions.size());
+
+        // Step through the list of recognitions and display info for each one.
+        for (Recognition recognition : currentRecognitions) {
+            double x = (recognition.getLeft() + recognition.getRight()) / 2 ;
+            double y = (recognition.getTop()  + recognition.getBottom()) / 2 ;
+
+            telemetry.addData(""," ");
+            telemetry.addData("Image", "%s (%.0f %% Conf.)", recognition.getLabel(), recognition.getConfidence() * 100);
+            telemetry.addData("- Position", "%.0f / %.0f", x, y);
+            telemetry.addData("- Size", "%.0f x %.0f", recognition.getWidth(), recognition.getHeight());
+        }
+
+        return new ArrayList<>(currentRecognitions);
+    }
+
     /*protected SignalConfig SignalIdentifier() {
         ratCrewWaitMillis(WAIT_TIME);
 
@@ -826,9 +870,10 @@ public abstract class AutoBase extends LinearOpMode {
 
     protected void plopThePurplePixel() {
         if(doThePurplePixelPlopper) {
+            thePurplePixelPlopper.setPosition(0.1);
+            ratCrewWaitSecs(2);
             thePurplePixelPlopper.setPosition(1.0);
-            ratCrewWaitSecs(1);
-            thePurplePixelPlopper.setPosition(0.0);
+            ratCrewWaitSecs(2);
         }
     }
 
@@ -853,9 +898,11 @@ public abstract class AutoBase extends LinearOpMode {
     }
 
     protected void moveArmCounter(int counter) {
+        moveArmCounter(counter, 0.25f);
+    }
+
+    protected void moveArmCounter(int counter, float power) {
         if (doArm) {
-            // Get current position.
-            armStart = arm.getCurrentPosition();
             armTarget = armStart + counter;
             printStatus();
 
@@ -867,7 +914,7 @@ public abstract class AutoBase extends LinearOpMode {
             ElapsedTime motorOnTime = new ElapsedTime();
             boolean keepGoing = true;
             while (opModeIsActive() && keepGoing && (motorOnTime.seconds() < 30)) {
-                arm.setPower(0.25);
+                arm.setPower(power);
                 printStatus();
                 keepGoing = arm.isBusy();
             }
@@ -876,8 +923,33 @@ public abstract class AutoBase extends LinearOpMode {
             printStatus();
             arm.setPower(0);
             arm.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
-            armStart = 0;
             armTarget = 0;
+        }
+    }
+
+    protected void moveextendcounter(int counter, float power) {
+        if (doExtend) {
+            extendTarget = extendStart + counter;
+            printStatus();
+
+            // Tell the motor its end spot, and start it up.
+            extend.setTargetPosition(extendTarget);
+            extend.setMode(DcMotor.RunMode.RUN_TO_POSITION);
+
+            // Loop and wait until its done.
+            ElapsedTime motorOnTime = new ElapsedTime();
+            boolean keepGoing = true;
+            while (opModeIsActive() && keepGoing && (motorOnTime.seconds() < 30)) {
+                extend.setPower(power);
+                printStatus();
+                keepGoing = extend.isBusy();
+            }
+
+            // Clear out the state.
+            printStatus();
+            extend.setPower(0);
+            extend.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
+            extendTarget = 0;
         }
     }
 }

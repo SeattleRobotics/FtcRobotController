@@ -1,18 +1,16 @@
-package org.firstinspires.ftc.teamcode.barebones;
-
-import static java.lang.Thread.sleep;
+package org.firstinspires.ftc.teamcode.teleop;
 
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
+import com.qualcomm.robotcore.hardware.CRServo;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.Servo;
-import com.qualcomm.robotcore.util.ElapsedTime;
 import com.qualcomm.robotcore.util.Range;
 
 /**
  */
-@TeleOp(name="Fruity Flame CenterStage!", group="AAA")
-public class BareBones_CenterStage extends OpMode {
+@TeleOp(name="Fruity Flame Deep!", group="AAA")
+public class Teleop_IntoTheDeep extends OpMode {
 
     // Throttler
     private enum ThrottlerGear {
@@ -24,7 +22,7 @@ public class BareBones_CenterStage extends OpMode {
     private boolean armThrottlerButtonLast = false;
     private ThrottlerGear armThrottlerGear = ThrottlerGear.GEAR_ONE;
 
-    // Wheels
+    // 4-wheel drive
     private boolean doMotors = true;
     private DcMotor backLeftDrive;
     private DcMotor backRightDrive;
@@ -32,23 +30,19 @@ public class BareBones_CenterStage extends OpMode {
     private DcMotor frontRightDrive;
 
     // FunkyArm
-    private boolean doFunkyArm = true;
+    private boolean doExtendoArm = true;
     private Servo funkyClaw;
     private boolean funkyClawLock = false;
     private boolean funkyClawButtonLast = false;
     private Servo funkyWrist;
     private DcMotor funkyShoulder;
-    private DcMotor funkyShoulder2;
     private int funkyShoulderStartPos = 0;
     private int funkyShoulderEndPos = 0;
 
-    // Drone Launcher
-    private boolean doDroneLauncher = true;
-    private Servo launcherLatch;
+    private DcMotor funkyExtender;
+    private int funkyExtenderStartPos = 0;
+    private int funkyExtenderEndPos = 0;
 
-    // Piper's Purple Pixel Plopper
-    private boolean doPurplePixelPlopper = true;
-    private Servo purplePixelPlopper;
 
     // Called once, right after hitting the Init button.
     @Override
@@ -62,10 +56,14 @@ public class BareBones_CenterStage extends OpMode {
             backRightDrive = hardwareMap.get(DcMotor.class, "motorRightRear");
 
             // This changes based on the gear box.
-            frontLeftDrive.setDirection(DcMotor.Direction.FORWARD);
-            frontRightDrive.setDirection(DcMotor.Direction.REVERSE);
-            backLeftDrive.setDirection(DcMotor.Direction.FORWARD);
-            backRightDrive.setDirection(DcMotor.Direction.REVERSE);
+            //frontLeftDrive.setDirection(DcMotor.Direction.FORWARD);
+            //frontRightDrive.setDirection(DcMotor.Direction.REVERSE);
+            //backLeftDrive.setDirection(DcMotor.Direction.FORWARD);
+            //backRightDrive.setDirection(DcMotor.Direction.REVERSE);
+            frontLeftDrive.setDirection(DcMotor.Direction.REVERSE);
+            frontRightDrive.setDirection(DcMotor.Direction.FORWARD);
+            backLeftDrive.setDirection(DcMotor.Direction.REVERSE);
+            backRightDrive.setDirection(DcMotor.Direction.FORWARD);
 
             // Set all motors to zero power.
             frontLeftDrive.setPower(0);
@@ -75,74 +73,53 @@ public class BareBones_CenterStage extends OpMode {
 
             // Set all motors to run without encoders; manual control.
             backLeftDrive.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
+            backLeftDrive.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
             backRightDrive.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
+            backRightDrive.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
             frontLeftDrive.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
+            frontLeftDrive.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
             frontRightDrive.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
+            frontRightDrive.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
         }
 
         boolean errFunkyArm = false;
-        if (doFunkyArm) {
+        if (doExtendoArm) {
             try {
                 // claw
                 funkyClawButtonLast = false;
                 funkyClawLock = true;
                 funkyClaw = hardwareMap.get(Servo.class, "funkyClaw");
-                funkyClaw.setPosition(0.0); // start clamped
 
                 // wrist
                 funkyWrist = hardwareMap.get(Servo.class, "funkyWrist");
-                //funkyWrist.setPosition(0.0);
 
                  // shoulder
                 funkyShoulder = hardwareMap.get(DcMotor.class, "funkyShoulder");
-                funkyShoulder.setDirection(DcMotor.Direction.FORWARD);
+                funkyShoulder.setDirection(DcMotor.Direction.REVERSE);
                 funkyShoulder.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
                 funkyShoulder.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
                 funkyShoulder.setPower(0);
-
-                funkyShoulder2 = hardwareMap.get(DcMotor.class, "funkyShoulder2");
-                funkyShoulder2.setDirection(DcMotor.Direction.REVERSE);
-                funkyShoulder.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
-                funkyShoulder.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
-                funkyShoulder.setPower(0);
-
                 funkyShoulderStartPos = funkyShoulder.getCurrentPosition();
                 funkyShoulderEndPos = funkyShoulderStartPos + 200;
+
+                // Extendo
+                funkyExtender = hardwareMap.get(DcMotor.class, "funkyShoulder2");
+                funkyExtender.setDirection(DcMotor.Direction.REVERSE);
+                funkyExtender.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
+                funkyExtender.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+                funkyExtender.setPower(0);
+                funkyExtenderStartPos = funkyExtender.getCurrentPosition();
+                funkyExtenderEndPos = funkyExtenderStartPos + 200;
+
             } catch (Exception e) {
-                doFunkyArm = false;
+                doExtendoArm = false;
                 errFunkyArm = true;
-                telemetry.addData("Error", "FunkyArm: %s", e.getMessage());
-            }
-        }
-
-        boolean errDroneLauncher = false;
-        if (doDroneLauncher) {
-            try {
-                launcherLatch = hardwareMap.get(Servo.class, "launcherLatch");
-                launcherLatch.setPosition(0.5);
-            } catch (Exception e) {
-                doDroneLauncher = false;
-                errDroneLauncher = true;
-                telemetry.addData("Error", "DroneLauncher: %s", e.getMessage());
-            }
-        }
-
-        boolean errPurplePixelPlopper = false;
-        if (doPurplePixelPlopper) {
-            try {
-                purplePixelPlopper = hardwareMap.get(Servo.class, "pixelPlopper");
-                purplePixelPlopper.setPosition(0.0);
-            } catch (Exception e) {
-                doPurplePixelPlopper = false;
-                errPurplePixelPlopper = true;
-                telemetry.addData("Error", "PurplePixelPlopper: %s", e.getMessage());
+                telemetry.addData("Error", "ExtendoArm: %s", e.getMessage());
             }
         }
 
         telemetry.addData("Yo", "Initialized Drive, motors=%b", doMotors);
-        telemetry.addData("Yo", "Initialized FunkyArm, do=%s, err=%s", doFunkyArm, errFunkyArm);
-        telemetry.addData("Yo", "Initialized Launcher, do=%s, err=%s", doDroneLauncher, errDroneLauncher);
-        telemetry.addData("Yo", "Initialized PPP, do=%s, err=%s", doPurplePixelPlopper, errPurplePixelPlopper);
+        telemetry.addData("Yo", "Initialized ExtendoArm, do=%s, err=%s", doExtendoArm, errFunkyArm);
     }
 
     // Called repeatedly, right after hitting start, up until hitting stop.
@@ -201,15 +178,23 @@ public class BareBones_CenterStage extends OpMode {
             double turn = gamepad1.right_stick_x;
             double strafe = gamepad1.left_stick_x;
             if (Math.abs(turn) > 0.1) {
-                leftBackPower = Range.clip(drive + turn, -1.0, 1.0);
-                leftFrontPower = Range.clip(drive + turn, -1.0, 1.0);
-                rightBackPower = Range.clip(drive - turn, -1.0, 1.0);
-                rightFrontPower = Range.clip(drive - turn, -1.0, 1.0);
+                //leftBackPower = Range.clip(drive + turn, -1.0, 1.0);
+                //leftFrontPower = Range.clip(drive + turn, -1.0, 1.0);
+                //rightBackPower = Range.clip(drive - turn, -1.0, 1.0);
+                //rightFrontPower = Range.clip(drive - turn, -1.0, 1.0);
+                leftBackPower = Range.clip(drive - turn, -1.0, 1.0);
+                leftFrontPower = Range.clip(drive - turn, -1.0, 1.0);
+                rightBackPower = Range.clip(drive + turn, -1.0, 1.0);
+                rightFrontPower = Range.clip(drive + turn, -1.0, 1.0);
             } else {
                 leftBackPower = Range.clip(drive - strafe, -1.0, 1.0);
                 leftFrontPower = Range.clip(drive + strafe, -1.0, 1.0);
                 rightBackPower = Range.clip(drive + strafe, -1.0, 1.0);
                 rightFrontPower = Range.clip(drive - strafe, -1.0, 1.0);
+                //leftBackPower = Range.clip(drive + strafe, -1.0, 1.0);
+                //leftFrontPower = Range.clip(drive - strafe, -1.0, 1.0);
+                //rightBackPower = Range.clip(drive - strafe, -1.0, 1.0);
+                //rightFrontPower = Range.clip(drive + strafe, -1.0, 1.0);
             }
 
             // Send calculated power to wheels
@@ -217,13 +202,19 @@ public class BareBones_CenterStage extends OpMode {
             backRightDrive.setPower(rightBackPower * motorScaler);
             frontLeftDrive.setPower(leftFrontPower * motorScaler);
             frontRightDrive.setPower(rightFrontPower * motorScaler);
-            telemetry.addData("left", "%.1f (%.1f x %.1f)", leftBackPower * motorScaler, leftBackPower, motorScaler);
-            telemetry.addData("right", "%.1f (%.1f x %.1f)", rightBackPower * motorScaler, rightBackPower, motorScaler);
-            telemetry.addData("left", "%.1f (%.1f x %.1f)", leftFrontPower * motorScaler, leftFrontPower, motorScaler);
-            telemetry.addData("right", "%.1f (%.1f x %.1f)", rightFrontPower * motorScaler, rightFrontPower, motorScaler);
+
+            // Report on the state of the motor.
+            int backLeftPos = backLeftDrive.getCurrentPosition();
+            int backRightPos = backRightDrive.getCurrentPosition();
+            int frontLeftPos = frontLeftDrive.getCurrentPosition();
+            int frontRightPos = frontRightDrive.getCurrentPosition();
+            telemetry.addData("mtr-lb", "%.1f (%.1f), pos=%d", leftBackPower * motorScaler, motorScaler, backLeftPos);
+            telemetry.addData("mtr-rb", "%.1f (%.1f), pos=%d", rightBackPower * motorScaler, motorScaler, backRightPos);
+            telemetry.addData("mtr-lf", "%.1f (%.1f), pos=%d", leftFrontPower * motorScaler, motorScaler, frontLeftPos);
+            telemetry.addData("mtr-rf", "%.1f (%.1f), pos=%d", rightFrontPower * motorScaler, motorScaler, frontRightPos);
         }
 
-        if (doFunkyArm) {
+        if (doExtendoArm) {
             // Claw Servo
             boolean funkyClawButtonNow = gamepad1.right_bumper;
             if (!funkyClawButtonLast && funkyClawButtonNow) {
@@ -236,7 +227,8 @@ public class BareBones_CenterStage extends OpMode {
                 funkyClawNewPosition = 0.0;
             }
             funkyClaw.setPosition(funkyClawNewPosition);
-            telemetry.addData("funcClaw", "actual=%.1f, desire=%.1f", funkyClaw.getPosition(), funkyClawNewPosition);
+            telemetry.addData("funcClaw", "actual=%.1f, desire=%.1f",
+                    funkyClaw.getPosition(), funkyClawNewPosition);
 
             // Wrist servo
             int wristControlDirection = 0;
@@ -254,21 +246,23 @@ public class BareBones_CenterStage extends OpMode {
             double wristCurrent = funkyWrist.getPosition();
             double clampedPosition = 0.0;
             if (wristControlDirection != 0) {
-                double wristStep = 0.002; // the bigger this is, the faster it will move
+                //double wristStep = 0.002; // the bigger this is, the faster it will move
+                double wristStep = 0.02; // the bigger this is, the faster it will move
                 double newPosition = wristCurrent + (wristStep * wristControlDirection);
                 clampedPosition = Math.max(0.0, Math.min(1.0, newPosition));
                 funkyWrist.setPosition(clampedPosition);
             }
-            telemetry.addData("funkWrst", "actual=%.1f, desired=%.1f, desired-dir=%d", wristCurrent, clampedPosition, wristControlDirection);
+            telemetry.addData("funkWrst", "actual=%.1f, desired=%.1f, desired-dir=%d",
+                    wristCurrent, clampedPosition, wristControlDirection);
 
             // Shoulder (DCmotor)
             double armMotorScaler = 1.0;
             switch (armThrottlerGear) {
             case GEAR_TWO:
-                armMotorScaler = 1.0;
+                armMotorScaler = 0.5;
                 break;
             case GEAR_ONE:
-                armMotorScaler = 0.5;
+                armMotorScaler = 1.0;
                 break;
             }
             double armPower = 0.0;
@@ -278,24 +272,27 @@ public class BareBones_CenterStage extends OpMode {
                 armPower = 1.0;
             }
             funkyShoulder.setPower(armPower * armMotorScaler);
-            funkyShoulder2.setPower(armPower * armMotorScaler);
-            telemetry.addData("funkShdr", "%.1f (%.1f x %.1f), boost=%b", armPower * armMotorScaler, armPower, armMotorScaler, gamepad1.b);
-        }
 
-        if (doDroneLauncher) {
-            if (gamepad1.a) {
-                launcherLatch.setPosition(1.0);
-            } else {
-                launcherLatch.setPosition(0.5);
-            }
-        }
+            int funkyShoulderPos = funkyShoulder.getCurrentPosition();
+            telemetry.addData("funkShdr", "%.1f (%.1f), pos=%d",
+                    armPower * armMotorScaler, armMotorScaler, funkyShoulderPos);
 
-        if (doPurplePixelPlopper) {
-           if (gamepad1.y) {
-                purplePixelPlopper.setPosition(1.0);
-            } else {
-                 purplePixelPlopper.setPosition(0.0);
+            // Extendo
+            double extendoMotorScaler = 1.0;
+            double extendoPowerRaw = 0.0;
+            int extendoDirection = 1;
+            if (gamepad1.dpad_left) {
+                extendoPowerRaw = 1.0;
+                extendoDirection = -1;
+            } else if (gamepad1.dpad_right) {
+                extendoPowerRaw = 1.0;
             }
+            double extendoPower = extendoPowerRaw * extendoMotorScaler * extendoDirection;
+            funkyExtender.setPower(extendoPower);
+
+            int funkyExtendoPos = funkyExtender.getCurrentPosition();
+            telemetry.addData("funkXtnd", "%.1f (%.1f), pos=%d",
+                    extendoPower, extendoPowerRaw, funkyExtendoPos);
         }
 
         telemetry.addData("Status", "Run Clock: %.2f", getRuntime());
